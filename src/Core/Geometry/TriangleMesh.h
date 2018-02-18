@@ -29,6 +29,7 @@
 #include <vector>
 #include <memory>
 #include <Eigen/Core>
+#include <Eigen/Sparse>
 
 #include <Core/Geometry/Geometry3D.h>
 
@@ -59,6 +60,13 @@ public:
 
 	/// Function to remove duplicated and non-manifold vertices/triangles
 	void Purge();
+
+
+	// Function to derive triangle triangle_areas_
+	void ComputeTriangleAreas();
+
+	// Function to derive LBO operator
+	void ComputeLBO(bool lumped = false);
 
 protected:
 	void RemoveDuplicatedVertices();
@@ -118,6 +126,10 @@ public:
 	std::vector<Eigen::Vector3d> vertex_colors_;
 	std::vector<Eigen::Vector3i> triangles_;
 	std::vector<Eigen::Vector3d> triangle_normals_;
+
+	std::vector<double> triangle_areas_;
+	Eigen::SparseMatrix<double> mass_matrix_; // should be private, since not modifiable
+	Eigen::SparseMatrix<double> stiffness_matrix_; // should be private, since not modifiable
 };
 
 /// Factory function to create a mesh from a file (TriangleMeshFactory.cpp)

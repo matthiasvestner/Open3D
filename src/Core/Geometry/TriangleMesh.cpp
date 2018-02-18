@@ -182,6 +182,78 @@ void TriangleMesh::Purge()
 	RemoveNonManifoldVertices();
 }
 
+void TriangleMesh::ComputeTriangleAreas()
+{
+	triangle_areas_.resize(triangles_.size());
+	for (size_t i = 0; i < triangles_.size(); i++) {
+		auto &triangle = triangles_[i];
+		Eigen::Vector3d v01 = vertices_[triangle(1)] - vertices_[triangle(0)];
+		Eigen::Vector3d v02 = vertices_[triangle(2)] - vertices_[triangle(0)];
+		triangle_areas_[i] = (v01.cross(v02)).norm();
+	}
+}
+
+void TriangleMesh::ComputeLBO(bool normalized/* = true*/)
+{
+	typedef Eigen::Triplet<double> T;
+	ComputeTriangleAreas();
+	// Mass matrix
+	std::vector<T> tripletList;
+	tripletList.reserve(9*triangles_.size());
+	for (size_t i=0;i<triangles_.size();i++){
+		auto &triangle = triangles_[i];
+		auto &area = triangle_areas_[i];
+		// Off diagonal entries
+		tripletList.push_back(T(triangle[0],triangle[1],area/12));
+		tripletList.push_back(T(triangle[1],triangle[2],area/12));
+		tripletList.push_back(T(triangle[2],triangle[0],area/12));
+		tripletList.push_back(T(triangle[2],triangle[1],area/12));
+		tripletList.push_back(T(triangle[1],triangle[0],area/12));
+		tripletList.push_back(T(triangle[0],triangle[2],area/12));
+		// Diagonal entries
+		tripletList.push_back(T(triangle[0],triangle[0],area/6));
+		tripletList.push_back(T(triangle[1],triangle[1],area/6));
+		tripletList.push_back(T(triangle[2],triangle[2],area/6));
+
+	}
+	mass_matrix_ = Eigen::SparseMatrix<double>(vertices_.size(),vertices_.size());
+	mass_matrix_.setFromTriplets(tripletList.begin(), tripletList.end());
+
+
+	// Stiffness Matrix
+	tripletList.clear();
+	tripletList.reserve(9*triangles_.size());
+	for (size_t i=0;i<triangles_.size();i++){
+		auto &triangle = triangles_[i];
+		auto &area = triangle_areas_[i];
+
+		auto l01 = (vertices_[triangle[1]]-vertices_[triangle[0]]).squaredNorm();
+		auto l02 = (vertices_[triangle[2]]-vertices_[triangle[0]]).squaredNorm();
+		auto l12 = (vertices_[triangle[2]]-vertices_[triangle[1]]).squaredNorm();
+
+		auto cot01 = (l02+l12-l01)/8*area;
+		auto cot02 = (l01+l12-l02)/8*area;
+		auto cot12 = (l01+l02-l12)/8*area;
+		// Off diagonal entries
+		tripletList.push_back(T(triangle[0],triangle[1],-cot01));
+		tripletList.push_back(T(triangle[1],triangle[2],-cot12));
+		tripletList.push_back(T(triangle[2],triangle[0],-cot02));
+		tripletList.push_back(T(triangle[2],triangle[1],-cot12));
+		tripletList.push_back(T(triangle[1],triangle[0],-cot01));
+		tripletList.push_back(T(triangle[0],triangle[2],-cot02));
+		// Diagonal entries
+		tripletList.push_back(T(triangle[0],triangle[0],cot01+cot02));
+		tripletList.push_back(T(triangle[1],triangle[1],cot01+cot12));
+		tripletList.push_back(T(triangle[2],triangle[2],cot01+cot12));
+
+	}
+
+	stiffness_matrix_ = Eigen::SparseMatrix<double>(vertices_.size(),vertices_.size());
+	stiffness_matrix_.setFromTriplets(tripletList.begin(), tripletList.end());
+
+}
+
+
 void TriangleMesh::RemoveDuplicatedVertices()
 {
 	typedef std::tuple<double, double, double> Coordinate3;
