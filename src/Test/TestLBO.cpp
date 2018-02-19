@@ -38,19 +38,10 @@
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <Eigen/Eigenvalues>
+#include <fstream>
 
 
-void eigendecomposition(Eigen::SparseMatrix<double> S,Eigen::SparseMatrix<double> M,int n_eigen,Eigen::VectorXd *evalues,Eigen::MatrixXd *evecs){
-	Spectra::SparseSymMatProd<double> op(S);
-	Spectra::SparseCholesky<double>  Bop(M);
-	// Spectra::SymGEigsSolver<double, Spectra::SMALLEST_MAGN, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigs(&op, &Bop, n_eigen, n_eigen+10);
-	Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigs(&op, &Bop, n_eigen, n_eigen+1);
-	eigs.init();
-  int nconv = eigs.compute();
-  if(eigs.info() == Spectra::SUCCESSFUL)
-  	*evalues = eigs.eigenvalues();
-		*evecs = eigs.eigenvectors();
-}
+
 
 void ScalarMapToColors(three::TriangleMesh &mesh, const std::vector<double> &f)
 {
@@ -74,6 +65,33 @@ void PaintMesh(three::TriangleMesh &mesh, const Eigen::Vector3d &color)
 	}
 }
 
+void eigendecomposition(const Eigen::SparseMatrix<double> *S,const Eigen::SparseMatrix<double> *M,int n_eigen,Eigen::VectorXd *evalues,Eigen::MatrixXd *evecs){
+	Spectra::SparseSymMatProd<double> op(*S);
+	Spectra::SparseCholesky<double>  Bop(*M);
+	Spectra::SymGEigsSolver<double, Spectra::SMALLEST_MAGN, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigs(&op, &Bop, n_eigen, n_eigen+10);
+	// Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigs(&op, &Bop, n_eigen, 100);
+	eigs.init();
+  int nconv = eigs.compute();
+  if(eigs.info() == Spectra::SUCCESSFUL)
+  	*evalues = eigs.eigenvalues();
+		*evecs = eigs.eigenvectors();
+}
+
+
+void TestLaplacian(three::TriangleMesh &mesh){
+	Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+
+	std::ofstream fileM("M.txt");
+	if (fileM.is_open()){
+		fileM << Eigen::MatrixXd(mesh.mass_matrix_).format(OctaveFmt);
+	}
+	std::ofstream fileS("S.txt");
+	if (fileS.is_open()){
+		fileS << Eigen::MatrixXd(mesh.mass_matrix_).format(OctaveFmt);
+	}
+}
+
+
 int main(int argc, char *argv[])
 {
 	using namespace three;
@@ -85,22 +103,19 @@ int main(int argc, char *argv[])
 	int n_eigen = 20;
 	Eigen::VectorXd evalues(n_eigen);
 	Eigen::MatrixXd evecs;
-
-	eigendecomposition(mesh->stiffness_matrix_,mesh->mass_matrix_,n_eigen,&evalues,&evecs);
-	std::cout <<  "Evals rows: " << evalues.rows() << " Evals cols: " << evalues.cols() << '\n';
-	std::cout <<  "Evecs rows: " <<  evecs.rows() << " Evecs cols: " <<  evecs.cols() << '\n';
-	//
-	// std::cout << evalues << std::endl;
-	std::vector<double> phi(mesh->vertices_.size());
-	for (int j=0;j<evecs.cols();j++){
-		std::cout << j << '\n';
-		for (int i=0;i<mesh->vertices_.size();i++){
-			phi[i] = evecs(i,j);
-		}
-		std::cout << "Eigenfunction No." << j << " Energy: " << evalues(j) << '\n';
-	  ScalarMapToColors(*mesh,phi);
-	  DrawGeometries({mesh});
-	}
+  TestLaplacian(*mesh);
+	// eigendecomposition(&(mesh->stiffness_matrix_),&(mesh->mass_matrix_),n_eigen,&evalues,&evecs);
+  // std::cout <<  "Evals rows: " << evalues.rows() << " Evals cols: " << evalues.cols() << '\n';
+	// std::cout <<  "Evecs rows: " <<  evecs.rows() << " Evecs cols: " <<  evecs.cols() << '\n';
+	// std::vector<double> phi(mesh->vertices_.size());
+	// for (int j=0;j<evecs.cols();j++){
+	// 	for (int i=0;i<mesh->vertices_.size();i++){
+	// 		phi[i] = evecs(i,j);
+	// 	}
+	// 	std::cout << "Eigenfunction No." << j << " Energy: " << evalues(j) << '\n';
+	//   ScalarMapToColors(*mesh,phi);
+	//   DrawGeometries({mesh});
+	// }
 
 
 }

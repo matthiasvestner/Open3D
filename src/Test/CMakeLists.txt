@@ -24,7 +24,7 @@ set_target_properties(TestTriangleMesh PROPERTIES
 
 add_executable(TestLBO TestLBO.cpp)
 target_link_libraries(TestLBO Visualization IO Core)
-target_include_directories(TestLBO PRIVATE "/Users/mvestner/Downloads/spectra/include")
+target_include_directories(TestLBO PRIVATE "/Users/mvestner/Documents/libs/spectra/include")
 set_target_properties(TestLBO PROPERTIES
 		FOLDER "Test"
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Test")
