@@ -32,7 +32,7 @@
 #include <Eigen/Dense>
 #include <Core/Utility/Helper.h>
 #include <Core/Utility/Console.h>
-
+#include <iostream>
 namespace three{
 
 void TriangleMesh::Clear()
@@ -189,7 +189,7 @@ void TriangleMesh::ComputeTriangleAreas()
 		auto &triangle = triangles_[i];
 		Eigen::Vector3d v01 = vertices_[triangle(1)] - vertices_[triangle(0)];
 		Eigen::Vector3d v02 = vertices_[triangle(2)] - vertices_[triangle(0)];
-		triangle_areas_[i] = (v01.cross(v02)).norm();
+		triangle_areas_[i] = (v01.cross(v02)).norm()/2;
 	}
 }
 
@@ -230,11 +230,14 @@ void TriangleMesh::ComputeLBO(bool normalized/* = true*/)
 		auto l01 = (vertices_[triangle[1]]-vertices_[triangle[0]]).squaredNorm();
 		auto l02 = (vertices_[triangle[2]]-vertices_[triangle[0]]).squaredNorm();
 		auto l12 = (vertices_[triangle[2]]-vertices_[triangle[1]]).squaredNorm();
-
-		auto cot01 = (l02+l12-l01)/8*area;
-		auto cot02 = (l01+l12-l02)/8*area;
-		auto cot12 = (l01+l02-l12)/8*area;
+    // std::cout << l01 << '\n';
+		// std::cout << l02 << '\n';
+		// std::cout << l12 << '\n';
+		auto cot01 = (l02+l12-l01)/(4*area);
+		auto cot02 = (l01+l12-l02)/(4*area);
+		auto cot12 = (l01+l02-l12)/(4*area);
 		// Off diagonal entries
+		// std::cout << cot01 << '\n';
 		tripletList.push_back(T(triangle[0],triangle[1],-cot01));
 		tripletList.push_back(T(triangle[1],triangle[2],-cot12));
 		tripletList.push_back(T(triangle[2],triangle[0],-cot02));

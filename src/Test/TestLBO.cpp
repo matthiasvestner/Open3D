@@ -41,7 +41,24 @@
 #include <fstream>
 
 
+std::shared_ptr<three::TriangleMesh> CreateMeshTetraeder()
+{
+	auto mesh_ptr = std::make_shared<three::TriangleMesh>();
 
+	mesh_ptr->vertices_.resize(4);
+	mesh_ptr->vertices_[0] = Eigen::Vector3d(1,0,0);
+	mesh_ptr->vertices_[1] = Eigen::Vector3d(0,1,0);
+	mesh_ptr->vertices_[2] = Eigen::Vector3d(0,0,1);
+	mesh_ptr->vertices_[3] = Eigen::Vector3d(1,1,1);
+
+
+	mesh_ptr->triangles_.push_back(Eigen::Vector3i(0, 1, 2));
+	mesh_ptr->triangles_.push_back(Eigen::Vector3i(1, 3, 2));
+	mesh_ptr->triangles_.push_back(Eigen::Vector3i(2, 3, 0));
+	mesh_ptr->triangles_.push_back(Eigen::Vector3i(0, 3, 1));
+
+	return mesh_ptr;
+}
 
 void ScalarMapToColors(three::TriangleMesh &mesh, const std::vector<double> &f)
 {
@@ -78,16 +95,20 @@ void eigendecomposition(const Eigen::SparseMatrix<double> *S,const Eigen::Sparse
 }
 
 
-void TestLaplacian(three::TriangleMesh &mesh){
-	Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
 
-	std::ofstream fileM("M.txt");
+
+
+
+void WriteLaplacianToFile(three::TriangleMesh &mesh){
+	Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, 0, ", ", ";\n", "", "", "", "");
+
+	std::ofstream fileM("M2.txt");
 	if (fileM.is_open()){
 		fileM << Eigen::MatrixXd(mesh.mass_matrix_).format(OctaveFmt);
 	}
-	std::ofstream fileS("S.txt");
+	std::ofstream fileS("S2.txt");
 	if (fileS.is_open()){
-		fileS << Eigen::MatrixXd(mesh.mass_matrix_).format(OctaveFmt);
+		fileS << Eigen::MatrixXd(mesh.stiffness_matrix_).format(OctaveFmt);
 	}
 }
 
@@ -97,25 +118,39 @@ int main(int argc, char *argv[])
 	using namespace three;
 
 	auto mesh = CreateMeshSphere(0.05);
-	// auto mesh = CreateMeshFromFile("/Users/mvestner/ownCloud/Documents/Promotion/registrations/tr_reg_000.ply");
+
+	// auto mesh = CreateMeshTetraeder();
+
 	mesh->ComputeVertexNormals();
+	// DrawGeometries({mesh});
+
 	mesh->ComputeLBO();
+  DrawGeometries({mesh});
+	auto M = Eigen::MatrixXd(mesh->mass_matrix_);
+	auto S = Eigen::MatrixXd(mesh->stiffness_matrix_);
+  std::vector<double> A = mesh->triangle_areas_;
+	// for (auto value : A) {
+  //   std::cout << value << '\n';
+	// }
+	// std::cout << M << '\n';
+	// std::cout << S << '\n';
 	int n_eigen = 20;
 	Eigen::VectorXd evalues(n_eigen);
 	Eigen::MatrixXd evecs;
-  TestLaplacian(*mesh);
-	// eigendecomposition(&(mesh->stiffness_matrix_),&(mesh->mass_matrix_),n_eigen,&evalues,&evecs);
-  // std::cout <<  "Evals rows: " << evalues.rows() << " Evals cols: " << evalues.cols() << '\n';
-	// std::cout <<  "Evecs rows: " <<  evecs.rows() << " Evecs cols: " <<  evecs.cols() << '\n';
-	// std::vector<double> phi(mesh->vertices_.size());
-	// for (int j=0;j<evecs.cols();j++){
-	// 	for (int i=0;i<mesh->vertices_.size();i++){
-	// 		phi[i] = evecs(i,j);
-	// 	}
-	// 	std::cout << "Eigenfunction No." << j << " Energy: " << evalues(j) << '\n';
-	//   ScalarMapToColors(*mesh,phi);
-	//   DrawGeometries({mesh});
-	// }
+  WriteLaplacianToFile(*mesh);
+
+	eigendecomposition(&(mesh->stiffness_matrix_),&(mesh->mass_matrix_),n_eigen,&evalues,&evecs);
+  std::cout <<  "Evals rows: " << evalues.rows() << " Evals cols: " << evalues.cols() << '\n';
+	std::cout <<  "Evecs rows: " <<  evecs.rows() << " Evecs cols: " <<  evecs.cols() << '\n';
+	std::vector<double> phi(mesh->vertices_.size());
+	for (int j=0;j<evecs.cols();j++){
+		for (int i=0;i<mesh->vertices_.size();i++){
+			phi[i] = evecs(i,j);
+		}
+		std::cout << "Eigenfunction No." << j << " Energy: " << evalues(j) << '\n';
+	  ScalarMapToColors(*mesh,phi);
+	  DrawGeometries({mesh});
+	}
 
 
 }
