@@ -227,17 +227,16 @@ void TriangleMesh::ComputeLBO(bool normalized/* = true*/)
 		auto &triangle = triangles_[i];
 		auto &area = triangle_areas_[i];
 
+		// squared edge length
 		auto l01 = (vertices_[triangle[1]]-vertices_[triangle[0]]).squaredNorm();
 		auto l02 = (vertices_[triangle[2]]-vertices_[triangle[0]]).squaredNorm();
 		auto l12 = (vertices_[triangle[2]]-vertices_[triangle[1]]).squaredNorm();
-    // std::cout << l01 << '\n';
-		// std::cout << l02 << '\n';
-		// std::cout << l12 << '\n';
-		auto cot01 = (l02+l12-l01)/(4*area);
-		auto cot02 = (l01+l12-l02)/(4*area);
-		auto cot12 = (l01+l02-l12)/(4*area);
+
+		auto cot01 = (l02+l12-l01)/(8*area);
+		auto cot02 = (l01+l12-l02)/(8*area);
+		auto cot12 = (l01+l02-l12)/(8*area);
+
 		// Off diagonal entries
-		// std::cout << cot01 << '\n';
 		tripletList.push_back(T(triangle[0],triangle[1],-cot01));
 		tripletList.push_back(T(triangle[1],triangle[2],-cot12));
 		tripletList.push_back(T(triangle[2],triangle[0],-cot02));
@@ -250,7 +249,6 @@ void TriangleMesh::ComputeLBO(bool normalized/* = true*/)
 		tripletList.push_back(T(triangle[2],triangle[2],cot01+cot12));
 
 	}
-
 	stiffness_matrix_ = Eigen::SparseMatrix<double>(vertices_.size(),vertices_.size());
 	stiffness_matrix_.setFromTriplets(tripletList.begin(), tripletList.end());
 
